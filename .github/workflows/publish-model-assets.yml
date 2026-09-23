@@ -1,0 +1,81 @@
+name: Publish Bonsai model assets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v1.0.0
+      MODEL_NAME: Ternary-Bonsai-2-27B-PTQ1_0.gguf
+      MMPROJ_NAME: Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf
+      MODEL_SHA256: 53107F530AA52EB00912263AB1EE29BD199261C87CD7B4AD4CA1318C1FE33EE3
+      MMPROJ_SHA256: 6807EDE61D570BB86BA34B756A0FA109EDC33668604DE867C6EA6D8F1D631903
+
+    steps:
+      - name: Prepare draft release
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"$RELEASE_TAG\" and .draft == true) | .id" | head -n 1)"
+          if [[ -z "$release_id" ]]; then
+            release_id="$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$RELEASE_TAG" -f target_commitish="main" -f name="Xinbao inference files v1.0.0" -F draft=true -F prerelease=false --jq .id)"
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate --jq '.[].id' | while read -r asset_id; do
+            [[ -n "$asset_id" ]] && gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"
+          done
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download, verify and split main model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          curl --fail --location --retry 8 --retry-delay 10 "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/resolve/main/$MODEL_NAME?download=true" | split --bytes=1800M --numeric-suffixes=1 --suffix-length=2 - "release-assets/$MODEL_NAME.part"
+          actual="$(cat release-assets/$MODEL_NAME.part* | sha256sum | awk '{print toupper($1)}')"
+          test "$actual" = "$MODEL_SHA256"
+
+      - name: Download and verify vision projector
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 8 --retry-delay 10 --output "release-assets/$MMPROJ_NAME" "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/resolve/main/$MMPROJ_NAME?download=true"
+          actual="$(sha256sum "release-assets/$MMPROJ_NAME" | awk '{print toupper($1)}')"
+          test "$actual" = "$MMPROJ_SHA256"
+
+      - name: Create checksum manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "$MODEL_SHA256  $MODEL_NAME"
+            echo "$MMPROJ_SHA256  $MMPROJ_NAME"
+            for file in release-assets/*.part*; do sha256sum "$file" | awk '{print toupper($1) "  " $2}' | sed 's#  release-assets/#  #'; done
+          } > release-assets/SHA256SUMS.txt
+
+      - name: Upload verified assets
+        shell: bash
+        env:
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          for file in release-assets/*; do
+            name="$(basename "$file")"
+            curl --fail --location --retry 5 --retry-delay 10 --request POST --header "Authorization: Bearer $GH_TOKEN" --header "Accept: application/vnd.github+json" --header "Content-Type: application/octet-stream" --upload-file "$file" "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$name" >/dev/null
+          done
+
+      - name: Publish release
+        shell: bash
+        env:
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          body="Inference assets for 心宝❤推理（极速版）. Install with scripts/install_bonsai_windows.ps1. Model source: prism-ml/Ternary-Bonsai-2-27B-gguf (Apache-2.0)."
+          jq -n --arg body "$body" '{draft:false, prerelease:false, make_latest:"true", body:$body}' | gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input -

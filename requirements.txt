@@ -1,0 +1,1 @@
+# No extra dependencies. Pillow, NumPy and psutil are provided by ComfyUI.
