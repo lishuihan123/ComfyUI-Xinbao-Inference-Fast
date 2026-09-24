@@ -397,7 +397,10 @@ def _pe_payload(
         "top_k": 20,
         "min_p": 0.0,
         "presence_penalty": 1.5 if task == "t2i" else 0.0,
-        "max_tokens": max(2048, max_output_tokens),
+        # Qwen's production PE profiles reserve a large budget because the
+        # model reasons before emitting the final JSON. The generic Bonsai UI
+        # limit must not silently shorten PE output.
+        "max_tokens": 16256 if task == "t2i" else 24000,
         "seed": seed,
         "chat_template_kwargs": {"enable_thinking": True},
         "stream": False,
@@ -534,7 +537,10 @@ class Bonsai2ReversePrompt:
                 model = _find_one(PE_MODEL_DIR, "Qwen-Image-2.1-PE-I2I.Q4_K_M.gguf")
                 mmproj = _find_one(PE_MODEL_DIR, "Qwen-Image-2.1-PE-I2I.mmproj-bf16.gguf")
                 pe_images = [image for _, image in image_media]
-            SERVER.ensure(PE_RUNTIME_DIR, model, mmproj, context_size, pe_mode=True)
+            pe_context = (
+                24576 if pe_task == "t2i" else (49152 if len(pe_images) <= 5 else 65536)
+            )
+            SERVER.ensure(PE_RUNTIME_DIR, model, mmproj, pe_context, pe_mode=True)
             payload = _pe_payload(
                 pe_task,
                 user_instruction,
