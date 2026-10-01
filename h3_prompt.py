@@ -258,23 +258,23 @@ def _append_professional_storyboard_role(parts: list[str]) -> None:
         "State explicitly that the whole video has no subtitles, captions, title text, stickers, floating text, corner "
         "labels, logos, or watermarks. Unless the user explicitly specifies different speech timing, keep the first 1 second "
         "and final 1 second silent for speech, and place all spoken content between those boundaries. User instructions about "
-        "whether speech exists, which shots speak, exact dialogue, cue count, timing, and lip-sync always take priority over defaults.\n\n"
+        "whether speech exists, which shots speak, exact dialogue, segment count, timing, voice, and lip-sync always take priority "
+        "over defaults. For a 15-second sales video with no user-specified script density or speed, default to a fast e-commerce "
+        "cadence with 4 compact spoken segments; use 3 only when longer product actions or transitions genuinely need more visual "
+        "breathing room. Aim for roughly 60-75 spoken Chinese characters in total, normally 15-19 characters per segment, at about "
+        "5.7-6.75 Chinese characters per second with natural 0.10-0.20 second micro-pauses. Treat 40-50 total characters and about "
+        "3.8-4.5 characters per second as medium speed, not the default. Use medium or slow speed only when the user explicitly asks "
+        "for it. Never exceed the assigned shot time or sacrifice intelligibility, pronunciation, audio stability, or lip-sync "
+        "accuracy merely to reach the target character count.\n\n"
         "【人物与产品设定】\n"
         "Describe the main person, identity stability, wardrobe, environment, lighting, product/object appearance, material, "
         "color, scale, and consistency constraints. Preserve details visible in the reference images. Do not invent brands, "
-        "prices, discounts, certifications, ingredients, performance figures, medical claims, or unsupported product features.\n\n"
-        "【口播文案】\n"
-        "Use this section only as a compact speech plan and timing index. Assign a stable speaker ID such as (S1), and for each "
-        "numbered cue list its time range, speaker, delivery mode (画面对口型 or 离屏旁白), and approximate Chinese-character "
-        "budget. Do not place <d> blocks or the exact spoken sentence in this section. The exact words must appear once and only "
-        "once, directly inside the corresponding speaking shot in 【分镜设计】, so the model binds the visible mouth action, "
-        "speaker identity, timing, and sentence locally. Preserve exact user dialogue there when provided. For a 15-second sales "
-        "video with no user-specified script density, normally create 3 spoken cues; use 4 only "
-        "when short copy and the shot rhythm make it natural. Aim for roughly 30-42 spoken Chinese characters in total, normally "
-        "8-14 Chinese characters per cue over about 2.2-3.5 seconds, at a moderate pace of about 3.2-3.8 Chinese characters "
-        "per second, with natural 0.2-0.4 second breathing pauses. Do not mechanically stretch, rush, or fill every second. "
-        "If the user supplies exact dialogue, cue count, timing, speaking speed, or asks for denser/sparser speech, follow the user "
-        "instead of these defaults. Explicitly mark default silent ranges as 无口播.\n\n"
+        "prices, discounts, certifications, ingredients, performance figures, medical claims, or unsupported product features. "
+        "Also define one stable natural speaking voice for each speaker. If the user specifies voice, accent, age impression, "
+        "pitch, timbre, or speaking speed, follow it exactly. Otherwise infer a suitable voice conservatively from the visible "
+        "adult model's apparent age range, gender presentation, expression, temperament, scene, product category, and sales style. "
+        "Do not invent a regional accent or an exact identity; when visual cues are uncertain, use a neutral natural adult Mandarin "
+        "voice. Keep the same speaker's voice consistent across every shot.\n\n"
         "【分镜设计】\n"
         "Break the full duration into numbered shots such as 分镜1（约0s-3.5s）. Each shot must include subject action, "
         "camera movement, composition, transition intent, texture details, background continuity, and product/reference "
@@ -287,11 +287,14 @@ def _append_professional_storyboard_role(parts: list[str]) -> None:
         "action; use an off-screen voiceover for product macro, fabric detail, transition, occluded face, distant view, or other "
         "shots where mouth movement would be visually inappropriate. For off-screen speech use the official phrase ‘says in an "
         "off-screen voiceover’ and state that any on-screen character's lips remain completely closed. Never ambiguously combine "
-        "voiceover with mouth movement. Put the exact dialogue inline at the precise action point of every speaking shot. For "
+        "voiceover with mouth movement. Put all speech information directly inside the precise speaking shot: shot time, speaker "
+        "identity and stable voice, on-camera lip-sync or off-screen mode, full exact dialogue, speaking action, mouth visibility, "
+        "pace, and pauses. Do not create a separate 【口播文案】 section or a separate cue index. Put the exact dialogue inline at "
+        "the precise action point of every speaking shot. For "
         "visible lip-sync use, for example: ‘年轻女主播 (S1) says: <d>[Chinese] 这件衣服轻盈柔软，穿着很舒服。</d>，她正面对"
         "镜头自然张嘴说话，嘴部清晰可见，嘴唇开合、音节、节奏和停顿与该句逐字同步’. For voiceover use the exact official pattern: "
-        "‘女主播 (S1) says in an off-screen voiceover: <d>[Chinese] ...</d>，镜头内人物嘴唇全程闭合’. Also name the cue ID "
-        "in that shot, but never place its exact words in 【口播文案】, another shot, 【音效与音乐】, or any other section. Unless "
+        "‘女主播 (S1) says in an off-screen voiceover: <d>[Chinese] ...</d>，镜头内人物嘴唇全程闭合’. Never place the same "
+        "exact words in another shot, 【音效与音乐】, or any other section. Unless "
         "the user overrides it, label the first 1 second and final 1 second 无口播. Time ranges must cover the full video continuously "
         "without gaps or overlaps. For 15-second product videos, prefer 4 shots unless the user explicitly asks otherwise.\n\n"
         "【转场要求】\n"
@@ -303,13 +306,18 @@ def _append_professional_storyboard_role(parts: list[str]) -> None:
         "highlights, foreground/midground/background layering, natural motion blur, and ad-level realism.\n\n"
         "【音效与音乐】\n"
         "Describe clean native audio, environmental sounds, object Foley, voice clarity, background music style, volume "
-        "relationship, and emotional progression. Do not repeat or quote dialogue here, and do not let music cover speech.\n\n"
+        "relationship, and emotional progression. Require a lifelike human voice with natural breath, micro-pauses, changing "
+        "intonation, sentence stress, pitch movement, emotional warmth, and conversational rhythm matching the visible presenter. "
+        "Forbid robotic cadence, constant pitch, mechanical text-to-speech delivery, metallic or vocoder-like tone, over-articulation, "
+        "unnatural syllable spacing, and identical timing between phrases. Do not repeat or quote dialogue here, and do not let "
+        "music cover speech.\n\n"
         "【严格约束】\n"
         "List negative constraints in Chinese and make the no-text rule unconditional: absolutely no subtitles, captions, "
         "title text, stickers, floating text, product callouts, corner labels, logos, or watermarks anywhere in the video. "
         "Also forbid extra people, identity drift, hand errors, product deformation, cheap filters, overexposure, plastic "
         "skin, abrupt spatial jumps, strong AI artifacts, any repeated or improvised spoken sentence, lip movement during an "
-        "off-screen voiceover, and a speaking shot whose visible mouth is static.\n\n"
+        "off-screen voiceover, a speaking shot whose visible mouth is static, robotic or metallic voice, flat monotone delivery, "
+        "unnatural word spacing, unstable speaker timbre, and speech too fast for reliable pronunciation or lip-sync.\n\n"
         "Style requirements: retain the original dense, professional, concrete, production-ready Chinese sales-video style. "
         "Prefer 800-1500 Chinese characters for normal requests, and more if max_new_tokens allows it. Keep user-provided "
         "visible text, dialogue, brand names, and reference labels exactly when needed."
@@ -432,22 +440,29 @@ def _build_h3_user(
     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
         format_policy = (
             "\nprofessional_output_contract: Preserve the original exact Chinese bracket-section format: "
-            "【全局参数】, 【人物与产品设定】, 【口播文案】, 【分镜设计】, 【转场要求】, "
+            "【全局参数】, 【人物与产品设定】, 【分镜设计】, 【转场要求】, "
             "【镜头与质感要求】, 【音效与音乐】, 【严格约束】. "
             "Keep the original detailed Chinese sales-video director role and dense production-ready output. "
-            "Use 【口播文案】 only as a numbered timing plan containing cue ID, time range, stable speaker ID such as (S1), "
-            "lip-sync or off-screen delivery mode, and approximate character budget; it must contain no <d> block and no exact "
-            "spoken sentence. Put each exact sentence once and only once directly inside its corresponding shot in 【分镜设计】 "
-            "using the official inline syntax (S1) says: <d>[Chinese] ...</d>, beside the visible speaking action and precise "
-            "mouth-sync requirement. Never quote, paraphrase, summarize, or restate those words elsewhere. User instructions "
+            "Do not create a separate 【口播文案】 section or cue index. Put every speech detail directly inside its corresponding "
+            "shot in 【分镜设计】: timing, stable speaker ID and voice, lip-sync or off-screen mode, full exact sentence, speaking "
+            "action, mouth visibility, pace, and pauses. Write each exact sentence once and only once using the official inline "
+            "syntax (S1) says: <d>[Chinese] ...</d>, beside the visible speaking action and precise mouth-sync requirement. Never "
+            "quote, paraphrase, summarize, or restate those words elsewhere. User instructions "
             "about dialogue, cue count, timing, speed, and which "
             "shots lip-sync override every default. If the user gives no lip-sync instruction, make the first suitable shot—"
             "normally Shot 1 after the opening silent second—a visible mouth-opening, accurate lip-sync sales presentation; "
             "choose visible lip-sync or off-screen voiceover for each later cue according to whether the shot clearly shows a "
             "speaking face. Mark voiceover explicitly with ‘says in an off-screen voiceover’ and keep on-screen lips completely "
-            "closed. For an otherwise unspecified 15-second video, normally write 3 cues (4 only when naturally paced), about "
-            "30-42 spoken Chinese characters total, 8-14 characters per cue, at roughly 3.2-3.8 characters per second with "
-            "breathing pauses. Unless the user overrides it, the first 1 second and final 1 second are speech-free. Do not repeat "
+            "closed. If the user gives no voice specification, infer a stable suitable natural Mandarin voice from the visible "
+            "adult model's apparent age range, gender presentation, temperament, expression, scene, product, and sales style; "
+            "when uncertain, use a neutral natural adult voice. Require lifelike breath, micro-pauses, intonation, sentence stress, "
+            "pitch movement, and conversational rhythm, never robotic, metallic, monotone, or mechanically even delivery. For an "
+            "otherwise unspecified 15-second video, default to fast e-commerce speech: normally write 4 compact cues (3 only when "
+            "the visual rhythm genuinely needs more room), about 60-75 spoken Chinese characters total, 15-19 characters per cue, "
+            "at roughly 5.7-6.75 characters per second with 0.10-0.20 second natural micro-pauses. Treat 40-50 total characters and "
+            "roughly 3.8-4.5 characters per second as medium speed. Use medium or slow speed only when explicitly requested, and "
+            "never sacrifice intelligibility, pronunciation, audio stability, or lip-sync accuracy to hit a numeric target. Unless the user overrides it, "
+            "the first 1 second and final 1 second are speech-free. Do not repeat "
             "dialogue in 【音效与音乐】 or any other "
             "section. State unconditionally that there are no subtitles or other on-screen text unless the user requests it. "
             "Do not output Markdown, notes, analysis, TOML, JSON, or English descriptive prose."
@@ -507,14 +522,11 @@ def _professional_prompt_issues(text: str) -> list[str]:
     if any(len(line) >= 4 and line in normalized_without_dialogue for line in normalized_dialogue):
         issues.append("spoken words are restated outside their single <d> block")
 
-    speech_plan_index = text.find("【口播文案】")
-    storyboard_index = text.find("【分镜设计】", speech_plan_index)
-    transition_index = text.find("【转场要求】", storyboard_index)
-    if speech_plan_index >= 0 and storyboard_index >= 0:
-        speech_plan = text[speech_plan_index:storyboard_index]
-        if "<d>" in speech_plan.lower() or "</d>" in speech_plan.lower():
-            issues.append("【口播文案】 must be a timing plan only; exact <d> dialogue belongs inside its speaking shot")
+    if "【口播文案】" in text:
+        issues.append("do not create a separate 【口播文案】 section; put all speech details directly inside each speaking shot")
 
+    storyboard_index = text.find("【分镜设计】")
+    transition_index = text.find("【转场要求】", storyboard_index)
     if dialogue_matches and storyboard_index >= 0:
         storyboard_end = transition_index if transition_index >= 0 else len(text)
         if any(not (storyboard_index <= match.start() < storyboard_end) for match in dialogue_matches):
@@ -543,7 +555,7 @@ def _prompt_issues(
 ) -> list[str]:
     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
         required = [
-            "【全局参数】", "【人物与产品设定】", "【口播文案】", "【分镜设计】",
+            "【全局参数】", "【人物与产品设定】", "【分镜设计】",
             "【转场要求】", "【镜头与质感要求】", "【音效与音乐】", "【严格约束】",
         ]
         main_text = text
@@ -644,7 +656,7 @@ class XinbaoH3PromptOptimizer:
                     _skill_choices(),
                     {
                         "default": SKILL_NAMES[BASE_SKILL_ID],
-                        "tooltip": "选择内容角色；中文带货视频把每句口播原文直接写进对应分镜并绑定张嘴口型，15秒通常生成3段中速口播；用户指定始终优先。",
+                        "tooltip": "选择内容角色；中文带货视频把口播原文写进对应分镜，默认匹配真人音色，15秒通常生成4段快速口播；中速或慢速须由用户明确指定。",
                     },
                 ),
                 "h3_mode": (list(H3_MODES), {"default": "文本生成视频 (T2VA)"}),
@@ -834,15 +846,20 @@ class XinbaoH3PromptOptimizer:
                     "perform the final dense Chinese sales-storyboard consistency pass without changing its role or structure"
                 ]
                 professional_repair_rule = (
-                    " Preserve all eight original Chinese bracket sections. Use 【口播文案】 only as a cue timing, speaker, "
-                    "delivery-mode, and character-budget index, with no <d> block and no exact spoken words. Put each exact "
-                    "spoken line once and only once directly inside its speaking shot in 【分镜设计】 using "
+                    " Preserve the seven required Chinese bracket sections and remove any separate 【口播文案】 section or cue "
+                    "index. Put every speech detail—time, speaker and stable voice, delivery mode, full exact words, mouth action, "
+                    "pace, and pauses—directly inside its speaking shot in 【分镜设计】. Put each exact spoken line once and only "
+                    "once using "
                     "(S1) says: <d>[Chinese] ...</d>, adjacent to the visible mouth-opening and precise lip-sync action. User "
                     "instructions about dialogue and lip-sync have highest "
                     "priority. If the user did not specify lip-sync, make the first suitable shot a visible mouth-opening accurate "
                     "lip-sync presentation, then choose later lip-sync or explicitly marked off-screen voiceover according to the "
-                    "shot. For an otherwise unspecified 15-second video, normally use 3 moderately paced cues totaling about "
-                    "30-42 Chinese characters rather than only 2 sparse cues."
+                    "shot. If the user did not specify a voice, infer one stable natural human Mandarin voice from the visible "
+                    "adult model and product mood; explicitly forbid robotic, metallic, monotone, mechanically even delivery. "
+                    "For an otherwise unspecified 15-second video, default to 4 fast but controllable cues totaling about 60-75 "
+                    "Chinese characters at 5.7-6.75 characters per second; 40-50 characters at 3.8-4.5 characters per second is "
+                    "medium speed and should be used only when requested. Slow down only when requested. Never force extra words "
+                    "into a cue whose duration cannot safely contain them or sacrifice pronunciation and lip-sync stability."
                     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID
                     else ""
                 )
