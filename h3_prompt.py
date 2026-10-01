@@ -244,55 +244,30 @@ def _append_output_language_policy(parts: list[str], skill_language: str) -> Non
         )
 
 
-def _append_professional_storyboard_format(parts: list[str]) -> None:
+def _append_professional_storyboard_role(parts: list[str]) -> None:
     parts.append(
-        "When the selected skill is Professional Chinese sales storyboard, convert the official H3 prompt requirements "
-        "into a polished Chinese short-video prompt using exactly this bracket-section structure. Return only the "
-        "prompt text, with no Markdown code fence, no explanation, and no notes.\n\n"
-        "Required section order:\n"
-        "【全局参数】\n"
-        "State total duration, aspect ratio, generation mode, realism/style, target short-video purpose, subtitle/text "
-        "policy, audio/dialogue policy, and shot count. Use the workflow duration and aspect ratio provided by the node. "
-        "State explicitly that the whole video has no subtitles, captions, title text, stickers, floating text, "
-        "corner labels, logos, or watermarks. State that the first 1 second and the final 1 second are silent for "
-        "speech: no voiceover, dialogue, narration, or lip-sync speech may occur there. All spoken content must start "
-        "after 1s and finish before total_duration - 1s.\n\n"
-        "【人物与产品设定】\n"
-        "Describe the main person, identity stability, wardrobe, environment, lighting, product/object appearance, "
-        "material, color, scale, and consistency constraints. If there is no product, rename this section content to "
-        "人物与核心主体设定 while keeping the heading unchanged.\n\n"
-        "【口播文案】\n"
-        "Write or preserve natural Simplified Chinese Mandarin voiceover when the request needs speech. Mention lip-sync "
-        "requirements. Divide the voiceover into exact time ranges inside the allowed speech window, for example "
-        "1s-3.5s: “...”, 3.5s-7s: “...”. "
-        "Every spoken sentence must belong to one and only one time range, and the total spoken content must fit the "
-        "available duration. Explicitly mark 0s-1s and the final 1s as 无口播. If the user did not request speech, write "
-        "that there is no voiceover and preserve clean ambient sound instead.\n\n"
-        "【分镜设计】\n"
-        "Break the full duration into numbered shots such as 分镜1（约0s-3.5s）. Each shot must include subject action, "
-        "camera movement, composition, transitions, texture details, background continuity, product/reference handling, "
-        "the exact voiceover line for that time range, or explicitly state 无口播. The first 1 second and final 1 second "
-        "must be labeled 无口播 even when they are inside a larger opening or closing shot. The time ranges must cover "
-        "the full video continuously without gaps or overlaps. For 15-second product videos, prefer 4 shots unless the user "
-        "explicitly asks otherwise.\n\n"
-        "【转场要求】\n"
-        "List natural cinematic transitions matched to the shot content, such as object wipe, reflection transition, "
-        "hand/arm occlusion, hair wipe, foreground light wipe, liquid cover, or camera movement continuity. Forbid cheap "
-        "jump cuts and spatially confusing transitions.\n\n"
-        "【镜头与质感要求】\n"
-        "Describe premium cinematography, macro detail, depth of field, real skin/object texture, stable motion, "
-        "material highlights, foreground/midground/background layering, natural motion blur, and ad-level realism.\n\n"
-        "【音效与音乐】\n"
-        "Describe clean native audio, environmental sounds, object Foley, voice clarity, background music style, volume "
-        "relationship, and emotional progression. Do not let music cover speech.\n\n"
-        "【严格约束】\n"
-        "List negative constraints in Chinese and make the no-text rule unconditional: absolutely no subtitles, captions, "
-        "title text, stickers, floating text, product callouts, corner labels, logos, or watermarks anywhere in the video. "
-        "Also forbid extra people, identity drift, hand errors, product deformation, cheap filters, overexposure, plastic "
-        "skin, abrupt spatial jumps, and strong AI artifacts.\n\n"
-        "Style requirements: make the Chinese prompt dense, professional, concrete, and production-ready. Do not be brief. "
-        "Prefer 800-1500 Chinese characters for normal requests, and more if max_new_tokens allows it. Keep user-provided "
-        "visible text, dialogue, brand names, and reference labels exactly when needed."
+        "Selected role: Chinese e-commerce video director and MiniMax H3 dialogue editor. This is a content-specialization "
+        "role only; it must never replace or wrap the official H3 prompt structure. Base modes must still use exactly "
+        "integrated_multimodal_description, overall_soundscape, and non_diegetic_music. Ref2VA must still use the official "
+        "six fields. Never output legacy bracket sections such as 【口播文案】 or 【分镜设计】.\n\n"
+        "Create a concise, production-ready product demonstration from the user's request and connected images. Preserve "
+        "the person's identity, product color, material, construction, scale, and visible details. Do not invent brands, "
+        "prices, discounts, certifications, ingredients, performance figures, medical claims, or product features that are "
+        "not visible or supplied by the user. Prefer natural handling actions that visibly support each sales point.\n\n"
+        "Dialogue is part of the shot timeline, never a separate script section. Assign every speaker a stable ID such as "
+        "(S1). Put each spoken line exactly once inside one <d>[Chinese] ...</d> block at the precise point where it is "
+        "spoken. Never quote, summarize, preview, repeat, or restate that line anywhere else in the prompt, including "
+        "overall_soundscape and non_diegetic_music. Unless the user explicitly supplies another language, all speech is "
+        "natural Mandarin Chinese. Preserve user-supplied dialogue verbatim.\n\n"
+        "When speech is requested, reserve 0.00-1.00 seconds and the final 1.00 second for closed lips and no human voice. "
+        "All <d> blocks must fit between those boundaries. Use short lines that can be spoken comfortably in the assigned "
+        "time; reduce the copy rather than accelerating the voice. When speech is not requested, do not create a <d> block. "
+        "Do not describe the same sentence in a second shot merely to explain continuity.\n\n"
+        "Keep the soundtrack layers distinct. The integrated timeline contains dialogue and synchronized diegetic sounds. "
+        "overall_soundscape contains only ambience, physical Foley, and non-verbal human sounds. non_diegetic_music contains "
+        "only audience-only score or N/A. Unless the user explicitly requests visible text, generate no subtitles, captions, "
+        "title cards, stickers, floating text, product callouts, logos, or watermarks. Return only the finished official H3 "
+        "prompt without Markdown fences, explanations, notes, or duplicate planning text."
     )
 
 
@@ -317,9 +292,8 @@ def _build_h3_system(
     ]
     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
         parts.append(
-            "Return only the final professional Chinese storyboard prompt, without commentary."
+            "Return only the final official H3 prompt specialized for a Chinese e-commerce video, without commentary."
         )
-        _append_professional_storyboard_format(parts)
     elif output_format == "H3 prompt only":
         parts.append("Return only the final optimized H3 prompt, without commentary.")
     else:
@@ -359,6 +333,9 @@ def _build_h3_system(
                 skill_dir,
                 skill_id,
             )
+
+    if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
+        _append_professional_storyboard_role(parts)
 
     _append_output_language_policy(parts, skill_language)
     return "\n\n---\n\n".join(parts)
@@ -409,15 +386,17 @@ def _build_h3_user(
     format_policy = ""
     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
         format_policy = (
-            "\nprofessional_output_contract: Use the exact Chinese bracket-section format: "
-            "【全局参数】, 【人物与产品设定】, 【口播文案】, 【分镜设计】, 【转场要求】, "
-            "【镜头与质感要求】, 【音效与音乐】, 【严格约束】. "
-            "For every shot, write an explicit start-end time range and the exact voiceover line for that range. "
-            "The first 1 second and the final 1 second must be speech-free and explicitly marked 无口播; all dialogue "
-            "must start after 1s and finish before total_duration - 1s. "
-            "State unconditionally that there are no subtitles or any other on-screen text. "
-            "Write a dense production-ready prompt, not a short summary. Preserve exact user voiceover text when provided. "
-            "Do not output Markdown, notes, analysis, TOML, JSON, or English descriptive prose."
+            "\nprofessional_role: Chinese e-commerce product video director and exact-dialogue editor. "
+            "This role changes content priorities, not the official H3 format. Use the official field order for the selected "
+            "H3 mode and never output Chinese bracket headings such as 【口播文案】 or 【分镜设计】. "
+            "Put spoken content only in the integrated shot timeline. Give the speaker a stable ID such as (S1), and encode "
+            "each exact line once as <d>[Chinese] ...</d>. Do not repeat the line in an outline, soundscape, music section, "
+            "another shot, quotation, summary, or instruction. Reserve 0.00-1.00 seconds and the final 1.00 second for "
+            "closed lips and no human voice; fit all speech naturally between those boundaries. Prefer fewer short lines "
+            "over fast, crowded delivery. Preserve exact user dialogue and use its supplied language tag when the user "
+            "explicitly requests a language other than Chinese. Keep product claims grounded in the input and connected "
+            "images. Unless requested, generate no subtitles or other visible text. Do not output Markdown, notes, analysis, "
+            "TOML, JSON, planning sections, or duplicate dialogue."
         )
 
     return (
@@ -451,6 +430,49 @@ def _detail_floor(duration_seconds: float, h3_mode: str, skill_language: str) ->
     return max(350, floor) if h3_mode == "Ref2VA" else floor
 
 
+def _normalize_dialogue_text(text: str) -> str:
+    return re.sub(r"[\s，。！？、；：,.!?;:\"'“”‘’]", "", text).casefold()
+
+
+def _professional_prompt_issues(text: str) -> list[str]:
+    issues = []
+    legacy_sections = [
+        "【全局参数】", "【人物与产品设定】", "【口播文案】", "【分镜设计】",
+        "【转场要求】", "【镜头与质感要求】", "【音效与音乐】", "【严格约束】",
+    ]
+    present_legacy_sections = [section for section in legacy_sections if section in text]
+    if present_legacy_sections:
+        issues.append(
+            "legacy Chinese bracket sections replace the official H3 field structure: "
+            + ", ".join(present_legacy_sections)
+        )
+
+    dialogue_matches = list(re.finditer(r"<d>\s*\[([^\]]+)]\s*(.*?)\s*</d>", text, re.DOTALL | re.IGNORECASE))
+    if text.lower().count("<d>") != len(dialogue_matches) or text.lower().count("</d>") != len(dialogue_matches):
+        issues.append("dialogue tags are incomplete or do not use <d>[Language] exact words</d>")
+
+    if dialogue_matches and not re.search(r"\(S\d+(?:\s*,\s*S\d+)*\)", text):
+        issues.append("spoken dialogue has no stable speaker ID such as (S1)")
+
+    normalized_dialogue = [_normalize_dialogue_text(match.group(2)) for match in dialogue_matches]
+    duplicates = sorted({line for line in normalized_dialogue if line and normalized_dialogue.count(line) > 1})
+    if duplicates:
+        issues.append("one or more spoken lines are repeated in multiple <d> blocks")
+
+    without_dialogue = re.sub(r"<d>.*?</d>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    normalized_without_dialogue = _normalize_dialogue_text(without_dialogue)
+    if any(len(line) >= 4 and line in normalized_without_dialogue for line in normalized_dialogue):
+        issues.append("spoken words are restated outside their single <d> block")
+
+    soundscape_index = text.find("overall_soundscape:")
+    if soundscape_index >= 0 and "<d>" in text[soundscape_index:]:
+        issues.append("dialogue appears in overall_soundscape or non_diegetic_music")
+
+    if not dialogue_matches and re.search(r"(?:口播|对白|旁白|says|voiceover).{0,100}[“\"]", text, re.DOTALL | re.IGNORECASE):
+        issues.append("spoken content is written as prose or quotation instead of one <d>[Language] block")
+    return issues
+
+
 def _prompt_issues(
     text: str,
     h3_mode: str,
@@ -458,13 +480,7 @@ def _prompt_issues(
     skill_language: str,
     duration_seconds: float,
 ) -> list[str]:
-    if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
-        required = [
-            "【全局参数】", "【人物与产品设定】", "【口播文案】", "【分镜设计】",
-            "【转场要求】", "【镜头与质感要求】", "【音效与音乐】", "【严格约束】",
-        ]
-        main_text = text
-    elif h3_mode == "Ref2VA":
+    if h3_mode == "Ref2VA":
         required = [
             "subject_definitions:", "summary:", "retention_analysis:",
             "detailed_description:", "overall_soundscape:", "non_diegetic_music:",
@@ -479,7 +495,11 @@ def _prompt_issues(
         main_text = text.split("overall_soundscape:", 1)[0]
 
     issues = [f"missing required section {name}" for name in required if name not in text]
-    floor = _detail_floor(duration_seconds, h3_mode, skill_language)
+    if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
+        issues.extend(_professional_prompt_issues(text))
+        floor = max(280, round(duration_seconds * 28))
+    else:
+        floor = _detail_floor(duration_seconds, h3_mode, skill_language)
     if skill_language in {"Chinese if available", "Chinese"}:
         actual = len(re.findall(r"[\u3400-\u9fff]", main_text))
         if actual < floor:
@@ -553,7 +573,13 @@ class XinbaoH3PromptOptimizer:
                     "INT",
                     {"default": 512, "min": 256, "max": 2048, "step": 64},
                 ),
-                "h3_skill": (_skill_choices(), {"default": SKILL_NAMES[BASE_SKILL_ID]}),
+                "h3_skill": (
+                    _skill_choices(),
+                    {
+                        "default": SKILL_NAMES[BASE_SKILL_ID],
+                        "tooltip": "选择内容角色；中文带货视频仍严格输出官方 H3 字段，并将每句口播只写入一次 <d>[Chinese] 标签。",
+                    },
+                ),
                 "h3_mode": (list(H3_MODES), {"default": "文本生成视频 (T2VA)"}),
                 "duration_seconds": (
                     "FLOAT",
@@ -736,7 +762,7 @@ class XinbaoH3PromptOptimizer:
                 duration_seconds,
             )
             missing_sections = [issue for issue in issues if issue.startswith("missing required section")]
-            if missing_sections or skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
+            if missing_sections or (skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID and issues):
                 repair_messages = [
                     *payload["messages"],
                     {"role": "assistant", "content": text},
