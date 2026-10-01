@@ -1,6 +1,6 @@
 # ComfyUI Xinbao Inference Fast
 
-`ComfyUI-Xinbao-Inference-Fast` 是独立发布的“心宝❤推理（极速版）”ComfyUI 节点。它不再与心宝通用节点组捆绑，安装后只注册一个可见节点。
+`ComfyUI-Xinbao-Inference-Fast` 是独立发布的“心宝❤推理（极速版）”ComfyUI 节点包。它不再与心宝通用节点组捆绑，安装后提供通用反推和 H3 专用反推两个节点。
 
 ## 心宝❤推理（极速版）
 
@@ -19,6 +19,12 @@
 “角色定位”只控制 Bonsai 通用模式。Qwen PE 模式固定使用与专项权重配套的官方角色和输出协议，避免自由角色提示破坏微调模型的行为。
 选择任意 Qwen PE 模式时，节点会自动隐藏“角色定位”输入框；切回 Bonsai 通用模式后自动恢复，避免误解。
 PE 模式固定采用官方生产参数，包括 T2I `16256`、I2I `24000` 的生成 token 预算；界面里的“最大输出 token 数”仅控制 Bonsai 通用模式。
+
+## H3 专用反推（Bonsai）
+
+该节点使用同一套本地 **Ternary Bonsai 2 27B** 权重，不再依赖或加载旧的 Qwen3-VL 模型。节点内置 MiniMax H3 提示词 Skill，可处理文本及最多 4 张参考图，并支持从工作流接收宽度、高度和时长。
+
+为兼容已有工作流，节点继续识别原来的 `Qwen3VL_Li_H3PromptOptimizer` 类型；旧工作流打开后会自动迁移控件值，但实际推理后端已经切换为 Bonsai。
 
 ## 安装节点
 

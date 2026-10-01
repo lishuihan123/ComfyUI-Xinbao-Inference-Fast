@@ -1,4 +1,18 @@
-from .bonsai_nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from .bonsai_nodes import (
+    NODE_CLASS_MAPPINGS as BONSAI_NODE_CLASS_MAPPINGS,
+    NODE_DISPLAY_NAME_MAPPINGS as BONSAI_NODE_DISPLAY_NAME_MAPPINGS,
+)
+from .h3_prompt import Qwen3VL_Li_H3PromptOptimizer
+
+NODE_CLASS_MAPPINGS = {
+    **BONSAI_NODE_CLASS_MAPPINGS,
+    "Qwen3VL_Li_H3PromptOptimizer": Qwen3VL_Li_H3PromptOptimizer,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    **BONSAI_NODE_DISPLAY_NAME_MAPPINGS,
+    "Qwen3VL_Li_H3PromptOptimizer": "H3 专用反推（Bonsai）",
+}
 
 WEB_DIRECTORY = "./web"
 
