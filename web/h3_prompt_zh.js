@@ -3,7 +3,6 @@ import { app } from "../../scripts/app.js";
 const NODE_CLASS = "Qwen3VL_Li_H3PromptOptimizer";
 const NODE_TITLE = "H3 专用反推（Bonsai）";
 const DEFAULT_MEGAPIXELS = 0.4;
-const DEFAULT_CONTEXT_SIZE = 32768;
 const NODE_MIN_WIDTH = 320;
 const H3_SKILL_WIDGET_INDEX = 1;
 const OUTPUT_FORMAT_WIDGET_INDEX = 8;
@@ -39,7 +38,6 @@ const WIDGET_LABELS = {
   top_p: "采样范围",
   max_new_tokens: "最大输出 Token 数",
   seed: "随机种子",
-  context_size: "上下文长度",
   release_comfy_vram: "运行前释放 ComfyUI 显存",
   keep_model_loaded: "保持 Bonsai 模型加载",
 };
@@ -71,7 +69,7 @@ function migrateLegacyValues(values) {
     repaired = [
       repaired[3], repaired[4], repaired[5], repaired[6], repaired[7], repaired[8],
       repaired[9], repaired[10], repaired[11], repaired[12], repaired[13], repaired[14],
-      repaired[15], repaired[16], repaired[17], DEFAULT_CONTEXT_SIZE, true, repaired[20],
+      repaired[15], repaired[16], repaired[17], true, repaired[21],
     ];
   }
 

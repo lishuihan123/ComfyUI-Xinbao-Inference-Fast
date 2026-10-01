@@ -41,6 +41,7 @@ H3_FRAME_REMAINDER = 5
 H3_FRAME_INTERVAL = 17
 H3_CANVAS_MULTIPLE = 32
 DEFAULT_MEGAPIXELS = 0.4
+BONSAI_CONTEXT_SIZE = 32768
 SKILL_LANGUAGE = {
     "优先使用中文": "Chinese if available",
     "仅英文": "English",
@@ -531,9 +532,6 @@ class XinbaoH3PromptOptimizer:
                         "control_after_generate": True,
                     },
                 ),
-                "context_size": (
-                    "INT", {"default": 32768, "min": 16384, "max": 131072, "step": 8192}
-                ),
                 "release_comfy_vram": ("BOOLEAN", {"default": True}),
                 "keep_model_loaded": ("BOOLEAN", {"default": False}),
             },
@@ -616,7 +614,7 @@ class XinbaoH3PromptOptimizer:
             BONSAI_RUNTIME_DIR,
             model,
             mmproj,
-            int(kwargs["context_size"]),
+            BONSAI_CONTEXT_SIZE,
         )
 
         content = []
