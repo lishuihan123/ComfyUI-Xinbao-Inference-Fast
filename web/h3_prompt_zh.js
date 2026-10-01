@@ -11,7 +11,7 @@ const OLD_PROFESSIONAL_STORYBOARD_LABEL = "专业中文分镜带货格式";
 const COMBO_DEFAULTS = {
   h3_skill: "H3 通用提示词编写",
   h3_mode: "首帧生成视频 (I2VA)",
-  skill_language: "优先使用中文",
+  skill_language: "严格遵循官方（英文）",
   reference_depth: "Skill 与参考资料",
   output_format: "仅输出 H3 提示词",
 };
@@ -47,6 +47,12 @@ const SOCKET_LABELS = {
   image_2: "参考图像 2",
   image_3: "参考图像 3",
   image_4: "参考图像 4",
+  image_5: "参考图像 5",
+  image_6: "参考图像 6",
+  image_7: "参考图像 7",
+  image_8: "参考图像 8",
+  image_9: "参考图像 9",
+  image_10: "参考图像 10",
   workflow_width: "工作流宽度",
   workflow_height: "工作流高度",
   workflow_duration: "工作流时长（秒）",

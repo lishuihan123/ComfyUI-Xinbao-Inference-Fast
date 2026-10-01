@@ -25,3 +25,9 @@
 - Source: https://github.com/ggml-org/llama.cpp/releases/tag/b11068
 - License: MIT
 - Downloaded only when the user explicitly runs the Qwen PE installer.
+
+## MiniMax H3 prompt-writing skills
+
+- Source: https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills
+- License: MiniMax H3 Community License Agreement
+- The bundled Skill and reference files are synchronized from the official MiniMax H3 repository. The portable `h3-prompt-writing` Skill is used as the authoritative output-format guide; the eight Hub-oriented style Skills are treated only as supplementary creative guidance inside this ComfyUI prompt-writing node.

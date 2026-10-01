@@ -74,15 +74,13 @@ For marketers and creators producing promotional content for brands, products, w
 
 ### music-video-subtitle-generator
 
-Installable under the name `music-video-subtitle-generator` (folder: `mv-subtitle-skill-confirmed`).
-
 <p align="center">
   <img src="../assets/music-video-subtitle-generator.gif" alt="music-video-subtitle-generator" width="240">
 </p>
 
 For musicians, video creators, and social-media editors producing AI music videos or emotional short films with lyric typography. The skill analyzes beat and vocal timing, separates character, scene, and text references, designs beat-reactive spatial typography, decomposes long works into connected shots, audits prompts, and routes generation for H3 or other video tools. It outputs MV concepts, shot prompts, lyric text plans, and stitching guidance. Best for stylized MVs and subtitle-driven music visuals.
 
-[SKILL.md](mv-subtitle-skill-confirmed/SKILL.md) · [SKILL.cn.md](mv-subtitle-skill-confirmed/SKILL.cn.md)
+[SKILL.md](music-video-subtitle-generator/SKILL.md) · [SKILL.cn.md](music-video-subtitle-generator/SKILL.cn.md)
 
 ### co-op-game-intro-generator
 

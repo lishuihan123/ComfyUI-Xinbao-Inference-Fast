@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import random
+import re
 from pathlib import Path
 
 from .bonsai_nodes import (
@@ -41,8 +42,11 @@ H3_FRAME_REMAINDER = 5
 H3_FRAME_INTERVAL = 17
 H3_CANVAS_MULTIPLE = 32
 DEFAULT_MEGAPIXELS = 0.4
-BONSAI_CONTEXT_SIZE = 32768
+DEFAULT_BONSAI_CONTEXT_SIZE = 32768
+EXPANDED_BONSAI_CONTEXT_SIZE = 65536
+MAX_BONSAI_CONTEXT_SIZE = 131072
 SKILL_LANGUAGE = {
+    "严格遵循官方（英文）": "Official English",
     "优先使用中文": "Chinese if available",
     "仅英文": "English",
     "仅中文": "Chinese",
@@ -57,18 +61,7 @@ OUTPUT_FORMAT = {
     "输出 H3 提示词和简要说明": "H3 prompt with brief notes",
 }
 PROFESSIONAL_STORYBOARD_SKILL_ID = "professional-chinese-sales-storyboard"
-H3_SYSTEM_BUDGET = 18000
-BASE_SKILL_LIMIT = 2500
-BASE_REFERENCE_LIMIT = 2500
-SKILL_LIMIT = 7000
-REFERENCE_LIMIT = 1500
-SPECIALIZED_H3_SYSTEM_BUDGET = 7500
-SPECIALIZED_BASE_SKILL_LIMIT = 1400
-SPECIALIZED_BASE_REFERENCE_LIMIT = 1200
-SPECIALIZED_SKILL_LIMIT = 3000
-SPECIALIZED_REFERENCE_LIMIT = 400
-SPECIALIZED_MAX_NEW_TOKENS = 768
-MAX_CHAT_NEW_TOKENS = 4096
+MAX_CHAT_NEW_TOKENS = 8192
 PROFESSIONAL_MIN_NEW_TOKENS = 2048
 SKILL_NAMES = {
     "h3-prompt-writing": "H3 通用提示词编写",
@@ -77,7 +70,7 @@ SKILL_NAMES = {
     "co-op-game-intro-generator": "合作游戏开场",
     "handdrawn-live-video-generator": "手绘实拍视频",
     "minimalist-product-ad-generator": "极简产品广告",
-    "mv-subtitle-skill-confirmed": "MV 字幕视频",
+    "music-video-subtitle-generator": "MV 字幕视频",
     "paper-collage-explainer-generator": "纸艺拼贴讲解",
     "papercraft-stop-motion-explainer": "纸艺定格动画",
     PROFESSIONAL_STORYBOARD_SKILL_ID: "中文带货视频",
@@ -150,7 +143,7 @@ def _normalize_duration(value, fallback: float = 6.0) -> float:
         duration = fallback
     if not math.isfinite(duration) or duration <= 0:
         duration = fallback
-    return min(15.0, max(5.0, duration))
+    return min(15.0, max(4.0, duration))
 
 
 def _normalize_aspect_ratio(value: str) -> str:
@@ -165,38 +158,25 @@ def _aspect_ratio_from_dimensions(width: int, height: int) -> str:
     )
 
 
-def _read_text(path: Path, limit: int | None = None) -> str:
-    text = path.read_text(encoding="utf-8").strip()
-    if limit is not None and len(text) > limit:
-        return text[:limit].rstrip()
-    return text
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8").strip()
 
 
 def _append_file(
     parts: list[str],
     path: Path,
     title: str,
-    remaining_chars: list[int] | None = None,
-    limit: int | None = None,
 ) -> None:
     if path.exists():
-        if remaining_chars is not None and remaining_chars[0] <= 0:
-            return
-        text = _read_text(path, limit)
-        if remaining_chars is not None and len(text) > remaining_chars[0]:
-            text = text[:remaining_chars[0]].rstrip()
+        text = _read_text(path)
         if text:
             parts.append(f"## {title}\n\n{text}")
-            if remaining_chars is not None:
-                remaining_chars[0] -= len(text)
 
 
 def _append_reference_files(
     parts: list[str],
     skill_dir: Path,
     skill_id: str,
-    remaining_chars: list[int] | None = None,
-    limit: int | None = None,
 ) -> None:
     ref_dir = skill_dir / "references"
     if not ref_dir.exists():
@@ -207,8 +187,6 @@ def _append_reference_files(
             parts,
             path,
             f"{skill_id}/{path.relative_to(skill_dir).as_posix()}",
-            remaining_chars,
-            limit,
         )
 
 
@@ -217,32 +195,26 @@ def _append_skill_file(
     skill_dir: Path,
     skill_id: str,
     skill_language: str,
-    remaining_chars: list[int] | None = None,
-    limit: int | None = None,
 ) -> None:
     cn_path = skill_dir / "SKILL.cn.md"
     en_path = skill_dir / "SKILL.md"
 
-    if skill_language == "English":
-        _append_file(parts, en_path, f"{skill_id}/SKILL.md", remaining_chars, limit)
+    if skill_language in {"Official English", "English"}:
+        _append_file(parts, en_path, f"{skill_id}/SKILL.md")
     elif skill_language == "Chinese":
         _append_file(
             parts,
             cn_path if cn_path.exists() else en_path,
             f"{skill_id}/SKILL",
-            remaining_chars,
-            limit,
         )
     elif skill_language == "Both":
-        _append_file(parts, cn_path, f"{skill_id}/SKILL.cn.md", remaining_chars, limit)
-        _append_file(parts, en_path, f"{skill_id}/SKILL.md", remaining_chars, limit)
+        _append_file(parts, cn_path, f"{skill_id}/SKILL.cn.md")
+        _append_file(parts, en_path, f"{skill_id}/SKILL.md")
     else:
         _append_file(
             parts,
             cn_path if cn_path.exists() else en_path,
             f"{skill_id}/SKILL",
-            remaining_chars,
-            limit,
         )
 
 
@@ -335,27 +307,13 @@ def _build_h3_system(
         raise FileNotFoundError(
             f"MiniMax H3 skill files are missing: {H3_SKILL_ROOT}"
         )
-
-    if skill_id in {BASE_SKILL_ID, PROFESSIONAL_STORYBOARD_SKILL_ID}:
-        system_budget = H3_SYSTEM_BUDGET
-        base_skill_limit = BASE_SKILL_LIMIT
-        base_reference_limit = BASE_REFERENCE_LIMIT
-        skill_limit = SKILL_LIMIT
-        reference_limit = REFERENCE_LIMIT
-    else:
-        system_budget = SPECIALIZED_H3_SYSTEM_BUDGET
-        base_skill_limit = SPECIALIZED_BASE_SKILL_LIMIT
-        base_reference_limit = SPECIALIZED_BASE_REFERENCE_LIMIT
-        skill_limit = SPECIALIZED_SKILL_LIMIT
-        reference_limit = SPECIALIZED_REFERENCE_LIMIT
-
-    remaining_chars = [system_budget]
     parts = [
         "You are a MiniMax H3 prompt optimizer running inside ComfyUI.",
-        "Use the official MiniMax H3 skill files below as the authority.",
+        "Use the complete official MiniMax H3 skill and mode-specific reference guide below as the authority. Do not omit, summarize, or weaken their requirements.",
         "This node only writes prompts; do not browse, download, call tools, or ask follow-up questions.",
         "Infer missing details conservatively from the text and attached images.",
         "Preserve the exact MiniMax H3 field names, section order, reference labels, and timing notation required by the official guides.",
+        "Before answering, silently audit the prompt for the required section order, reference-label consistency, exact duration, shot-level composition, subject appearance and position, environment, lighting, actions and state changes, camera movement, synchronized sound, and every connected image. Return a complete production-ready prompt, never a short plot summary.",
     ]
     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
         parts.append(
@@ -372,8 +330,6 @@ def _build_h3_system(
         parts,
         base_dir / "SKILL.md",
         f"{BASE_SKILL_ID}/SKILL.md",
-        remaining_chars,
-        base_skill_limit,
     )
 
     if h3_mode == "Ref2VA":
@@ -381,16 +337,12 @@ def _build_h3_system(
             parts,
             base_dir / "references" / "ref-en.txt",
             f"{BASE_SKILL_ID}/references/ref-en.txt",
-            remaining_chars,
-            base_reference_limit,
         )
     else:
         _append_file(
             parts,
             base_dir / "references" / "base-en.txt",
             f"{BASE_SKILL_ID}/references/base-en.txt",
-            remaining_chars,
-            base_reference_limit,
         )
 
     if skill_id not in {BASE_SKILL_ID, PROFESSIONAL_STORYBOARD_SKILL_ID}:
@@ -400,16 +352,12 @@ def _build_h3_system(
             skill_dir,
             skill_id,
             skill_language,
-            remaining_chars,
-            skill_limit,
         )
         if reference_depth == "Skill with references":
             _append_reference_files(
                 parts,
                 skill_dir,
                 skill_id,
-                remaining_chars,
-                reference_limit,
             )
 
     _append_output_language_policy(parts, skill_language)
@@ -425,6 +373,7 @@ def _build_h3_user(
     skill_id: str,
     output_format: str,
     skill_language: str,
+    image_indices: list[int],
 ) -> str:
     if skill_language in {"Chinese if available", "Chinese"}:
         language_policy = (
@@ -440,6 +389,22 @@ def _build_h3_user(
         )
     else:
         language_policy = "mandatory_output_language: English."
+
+    if skill_language in {"Chinese if available", "Chinese"}:
+        detail_floor = max(700, round(duration_seconds * 80))
+        detail_policy = (
+            f"minimum_detail_target: At least {detail_floor} Chinese descriptive characters in the main timeline "
+            "section. Reach the target with concrete composition, identity, environment, lighting, action progression, "
+            "camera movement, material, continuity, and synchronized sound detail instead of repetition."
+        )
+    else:
+        detail_floor = max(250, round(duration_seconds * 25))
+        if h3_mode == "Ref2VA":
+            detail_floor = max(350, detail_floor)
+        detail_policy = (
+            f"minimum_detail_target: At least {detail_floor} English words in the main timeline section. "
+            "Do not pad with repetition; satisfy the target through concrete shot-level visual, motion, camera, lighting, and audio detail."
+        )
 
     format_policy = ""
     if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
@@ -465,11 +430,116 @@ def _build_h3_user(
         f"aspect_ratio: {aspect_ratio}\n"
         f"official_skill: {skill_id}\n"
         f"output_format: {output_format}\n"
-        f"{language_policy}{format_policy}\n\n"
-        "Attached images, if any, are H3 reference images in socket order: image_1, image_2, image_3, image_4.\n\n"
-        f"source_prompt:\n{source_prompt.strip()}\n\n"
+        f"{language_policy}\n{detail_policy}{format_policy}\n\n"
+        f"connected_reference_image_count: {len(image_indices)}\n"
+        + (
+            f"Connected image sockets: {', '.join(f'image_{index}' for index in image_indices)}. "
+            "Their official Picture numbers must match these socket numbers. "
+            "Inspect and account for every connected image; never silently ignore one.\n\n"
+            if image_indices
+            else "There are no connected reference images. Do not invent Picture or Subject references.\n\n"
+        )
+        + f"source_prompt:\n{source_prompt.strip()}\n\n"
         f"extra_requirements:\n{extra_requirements.strip() if extra_requirements else 'None'}"
     )
+
+
+def _detail_floor(duration_seconds: float, h3_mode: str, skill_language: str) -> int:
+    if skill_language in {"Chinese if available", "Chinese"}:
+        return max(700, round(duration_seconds * 80))
+    floor = max(250, round(duration_seconds * 25))
+    return max(350, floor) if h3_mode == "Ref2VA" else floor
+
+
+def _prompt_issues(
+    text: str,
+    h3_mode: str,
+    skill_id: str,
+    skill_language: str,
+    duration_seconds: float,
+) -> list[str]:
+    if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
+        required = [
+            "【全局参数】", "【人物与产品设定】", "【口播文案】", "【分镜设计】",
+            "【转场要求】", "【镜头与质感要求】", "【音效与音乐】", "【严格约束】",
+        ]
+        main_text = text
+    elif h3_mode == "Ref2VA":
+        required = [
+            "subject_definitions:", "summary:", "retention_analysis:",
+            "detailed_description:", "overall_soundscape:", "non_diegetic_music:",
+        ]
+        main_text = text.split("overall_soundscape:", 1)[0]
+    else:
+        required = [
+            "integrated_multimodal_description:",
+            "overall_soundscape:",
+            "non_diegetic_music:",
+        ]
+        main_text = text.split("overall_soundscape:", 1)[0]
+
+    issues = [f"missing required section {name}" for name in required if name not in text]
+    floor = _detail_floor(duration_seconds, h3_mode, skill_language)
+    if skill_language in {"Chinese if available", "Chinese"}:
+        actual = len(re.findall(r"[\u3400-\u9fff]", main_text))
+        if actual < floor:
+            issues.append(f"main timeline has only {actual} Chinese characters; target at least {floor}")
+    else:
+        actual = len(re.findall(r"\b[A-Za-z]+(?:[-'][A-Za-z]+)*\b", main_text))
+        if actual < floor:
+            issues.append(f"main timeline has only {actual} English words; target at least {floor}")
+    return issues
+
+
+def _automatic_context_size(
+    system_text: str,
+    user_text: str,
+    image_count: int,
+    max_output_tokens: int,
+) -> int:
+    estimated_tokens = (
+        (len(system_text) + len(user_text) + 3) // 4
+        + image_count * 2048
+        + max_output_tokens * 2
+        + 2048
+    )
+    if estimated_tokens <= 28672:
+        return DEFAULT_BONSAI_CONTEXT_SIZE
+    if estimated_tokens <= 57344:
+        return EXPANDED_BONSAI_CONTEXT_SIZE
+    return MAX_BONSAI_CONTEXT_SIZE
+
+
+def _main_section_parts(text: str, h3_mode: str) -> tuple[str, str, str] | None:
+    label = "detailed_description:" if h3_mode == "Ref2VA" else "integrated_multimodal_description:"
+    start = text.find(label)
+    end = text.find("overall_soundscape:", start + len(label))
+    if start < 0 or end < 0:
+        return None
+    return text[:start], label, text[end:]
+
+
+def _segment_body(text: str, h3_mode: str) -> str:
+    labels = ["detailed_description:", "integrated_multimodal_description:"]
+    body = text.strip()
+    for label in labels:
+        if label in body:
+            body = body.split(label, 1)[1].strip()
+    if "overall_soundscape:" in body:
+        body = body.split("overall_soundscape:", 1)[0].strip()
+    if "non_diegetic_music:" in body:
+        body = body.split("non_diegetic_music:", 1)[0].strip()
+    if h3_mode != "Ref2VA" and body.startswith("For the target video"):
+        body = body.split("\n", 1)[1].strip() if "\n" in body else ""
+    return body
+
+
+def _segment_language_matches(text: str, chinese_output: bool) -> bool:
+    cjk_count = len(re.findall(r"[\u3400-\u9fff]", text))
+    latin_count = len(re.findall(r"[A-Za-z]", text))
+    if chinese_output:
+        return cjk_count >= 80 and cjk_count >= latin_count * 0.5
+    return latin_count >= 120 and latin_count >= cjk_count * 2
 
 
 class XinbaoH3PromptOptimizer:
@@ -487,14 +557,14 @@ class XinbaoH3PromptOptimizer:
                 "h3_mode": (list(H3_MODES), {"default": "文本生成视频 (T2VA)"}),
                 "duration_seconds": (
                     "FLOAT",
-                    {"default": 6.0, "min": 5.0, "max": 15.0, "step": 0.5},
+                    {"default": 6.0, "min": 4.0, "max": 15.0, "step": 0.5},
                 ),
                 "aspect_ratio": (list(ASPECT_RATIOS), {"default": "16:9"}),
                 "megapixels": (
                     "FLOAT",
                     {"default": DEFAULT_MEGAPIXELS, "min": 0.1, "max": 16.0, "step": 0.1},
                 ),
-                "skill_language": (list(SKILL_LANGUAGE), {"default": "优先使用中文"}),
+                "skill_language": (list(SKILL_LANGUAGE), {"default": "严格遵循官方（英文）"}),
                 "reference_depth": (list(REFERENCE_DEPTH), {"default": "Skill 与参考资料"}),
                 "output_format": (list(OUTPUT_FORMAT), {"default": "仅输出 H3 提示词"}),
                 "source_prompt": (
@@ -521,7 +591,7 @@ class XinbaoH3PromptOptimizer:
                 ),
                 "max_new_tokens": (
                     "INT",
-                    {"default": 2048, "min": 64, "max": 8192, "step": 64},
+                    {"default": 3072, "min": 512, "max": 8192, "step": 128},
                 ),
                 "seed": (
                     "INT",
@@ -539,10 +609,7 @@ class XinbaoH3PromptOptimizer:
                 "workflow_width": ("INT",),
                 "workflow_height": ("INT",),
                 "workflow_duration": ("FLOAT",),
-                "image_1": ("IMAGE",),
-                "image_2": ("IMAGE",),
-                "image_3": ("IMAGE",),
-                "image_4": ("IMAGE",),
+                **{f"image_{index}": ("IMAGE",) for index in range(1, 11)},
             },
         }
 
@@ -585,8 +652,10 @@ class XinbaoH3PromptOptimizer:
         max_new_tokens = min(int(kwargs["max_new_tokens"]), MAX_CHAT_NEW_TOKENS)
         if skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
             max_new_tokens = max(max_new_tokens, PROFESSIONAL_MIN_NEW_TOKENS)
-        if skill_id not in {BASE_SKILL_ID, PROFESSIONAL_STORYBOARD_SKILL_ID}:
-            max_new_tokens = min(max_new_tokens, SPECIALIZED_MAX_NEW_TOKENS)
+
+        image_indices = [
+            index for index in range(1, 11) if kwargs.get(f"image_{index}") is not None
+        ]
         system_text = _build_h3_system(
             skill_id,
             h3_mode,
@@ -603,6 +672,7 @@ class XinbaoH3PromptOptimizer:
             skill_id,
             output_format,
             skill_language,
+            image_indices,
         )
 
         if kwargs["release_comfy_vram"]:
@@ -610,18 +680,22 @@ class XinbaoH3PromptOptimizer:
 
         model = _find_one(BONSAI_MODEL_DIR, "*PTQ1_0.gguf")
         mmproj = _find_one(BONSAI_MODEL_DIR, "*mmproj-Q8_0.gguf")
+        context_size = _automatic_context_size(
+            system_text,
+            user_text,
+            len(image_indices),
+            max_new_tokens,
+        )
         SERVER.ensure(
             BONSAI_RUNTIME_DIR,
             model,
             mmproj,
-            BONSAI_CONTEXT_SIZE,
+            context_size,
         )
 
         content = []
-        for index in range(1, 5):
-            image = kwargs.get(f"image_{index}")
-            if image is None:
-                continue
+        for index in image_indices:
+            image = kwargs[f"image_{index}"]
             pil = _tensor_frame_to_pil(image, int(kwargs["max_side"]))
             content.append({"type": "text", "text": f"H3 reference image_{index}"})
             content.append(
@@ -654,6 +728,153 @@ class XinbaoH3PromptOptimizer:
             text = _clean_prompt(result["choices"][0]["message"]["content"])
             if not text:
                 raise RuntimeError(f"Bonsai 模型返回了空结果：{result}")
+            issues = _prompt_issues(
+                text,
+                h3_mode,
+                skill_id,
+                skill_language,
+                duration_seconds,
+            )
+            missing_sections = [issue for issue in issues if issue.startswith("missing required section")]
+            if missing_sections or skill_id == PROFESSIONAL_STORYBOARD_SKILL_ID:
+                repair_messages = [
+                    *payload["messages"],
+                    {"role": "assistant", "content": text},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Rewrite the draft in full. It failed the final H3 compliance audit for these reasons:\n- "
+                            + "\n- ".join(issues)
+                            + "\nFollow the complete official guide already provided in the system message. "
+                            "Preserve the user's intent, exact duration, all connected references, and required output language. "
+                            "Add concrete shot-level composition, subject, environment, action, camera, lighting, material, continuity, "
+                            "and synchronized audio detail instead of repetition. Output only the complete replacement prompt."
+                        ),
+                    },
+                ]
+                repair_payload = {
+                    **payload,
+                    "messages": repair_messages,
+                    "temperature": min(float(kwargs["temperature"]), 0.2),
+                    "max_tokens": min(MAX_CHAT_NEW_TOKENS, max(max_new_tokens, 4096)),
+                }
+                repair = _post_json(SERVER.endpoint(), repair_payload, timeout=1200)
+                repaired_text = _clean_prompt(repair["choices"][0]["message"]["content"])
+                if repaired_text:
+                    text = repaired_text
+
+            issues = _prompt_issues(
+                text,
+                h3_mode,
+                skill_id,
+                skill_language,
+                duration_seconds,
+            )
+            needs_more_detail = any(issue.startswith("main timeline has only") for issue in issues)
+            section_parts = _main_section_parts(text, h3_mode)
+            if needs_more_detail and section_parts and skill_id != PROFESSIONAL_STORYBOARD_SKILL_ID:
+                floor = _detail_floor(duration_seconds, h3_mode, skill_language)
+                chinese_output = skill_language in {"Chinese if available", "Chinese"}
+                detail_per_segment = 420 if chinese_output else 200
+                segment_count = min(4, max(2, math.ceil(floor / detail_per_segment)))
+                segment_target = math.ceil(floor / segment_count)
+                segments = []
+                for segment_index in range(segment_count):
+                    start_seconds = duration_seconds * segment_index / segment_count
+                    end_seconds = duration_seconds * (segment_index + 1) / segment_count
+                    length_rule = (
+                        f"at least {segment_target} Chinese descriptive characters"
+                        if chinese_output
+                        else f"at least {segment_target} English words"
+                    )
+                    if segment_index == 0:
+                        opening_rule = "Begin with [Shot 1] and establish the complete opening composition."
+                    elif h3_mode == "FL2VA":
+                        opening_rule = (
+                            f"Continue the same uncut [Shot 1] from {start_seconds:.3f} seconds; do not introduce a new shot label."
+                        )
+                    else:
+                        opening_rule = (
+                            f"Begin with [Shot {segment_index + 1}] At 00:{start_seconds:06.3f}, using an official cut or transition expression."
+                        )
+                    if chinese_output:
+                        if segment_index == 0:
+                            opening_rule = "必须以 [Shot 1] 开头，并完整建立开场构图。"
+                        elif h3_mode == "FL2VA":
+                            opening_rule = (
+                                f"从 {start_seconds:.3f} 秒继续同一个不切镜的 [Shot 1]，不要增加新的 Shot 标签。"
+                            )
+                        else:
+                            opening_rule = (
+                                f"必须以 [Shot {segment_index + 1}] At 00:{start_seconds:06.3f}, 开头，并使用官方允许的切镜或转场表达。"
+                            )
+                        segment_prompt = (
+                            f"只编写完整时间线的第 {segment_index + 1}/{segment_count} 段，覆盖目标视频 "
+                            f"{start_seconds:.3f}-{end_seconds:.3f} 秒。{opening_rule} "
+                            f"本段描述性正文不得少于 {segment_target} 个简体中文汉字。全部描述性文字必须使用简体中文，"
+                            "不得出现英文描述句；只保留 [Shot N]、时间码、引用标签和其他官方固定结构标记。"
+                            "严格延续完整草稿、用户要求和每一张参考图，具体描写构图、稳定的主体身份与位置、环境、光线、材质、"
+                            "动作发展、带幅度和速度的运镜、物理状态变化以及同步的画内声音，不得靠同义反复凑长度。"
+                            "不要输出参考图对齐说明、字段名、overall_soundscape、non_diegetic_music、备注或解释，只输出这一段正文。"
+                        )
+                    else:
+                        segment_prompt = (
+                            f"Write only timeline segment {segment_index + 1} of {segment_count}, covering "
+                            f"{start_seconds:.3f}-{end_seconds:.3f} seconds of the target video. {opening_rule} "
+                            f"Write {length_rule}. Write every descriptive sentence in English. Preserve continuity with the complete "
+                            "draft, the user's request, and every reference image. Describe composition, stable subject identity and position, "
+                            "environment, lighting, materials, action progression, camera motion with amplitude and speed, physical state "
+                            "changes, and synchronized diegetic sound. Do not output alignment instructions, field names, overall_soundscape, "
+                            "non_diegetic_music, notes, or explanations."
+                        )
+                    segment_payload = {
+                        **payload,
+                        "messages": [
+                            *payload["messages"],
+                            {"role": "assistant", "content": text},
+                            {"role": "user", "content": segment_prompt},
+                        ],
+                        "temperature": min(float(kwargs["temperature"]), 0.25),
+                        "max_tokens": min(MAX_CHAT_NEW_TOKENS, max(1536, max_new_tokens // 2)),
+                    }
+                    segment_result = _post_json(SERVER.endpoint(), segment_payload, timeout=1200)
+                    segment = _segment_body(
+                        _clean_prompt(segment_result["choices"][0]["message"]["content"]),
+                        h3_mode,
+                    )
+                    if segment and not _segment_language_matches(segment, chinese_output):
+                        translation_rule = (
+                            "将输入完整改写为简体中文，保留 [Shot N]、At 00:SS.mmm、<Picture N>、<Subject N>、"
+                            "<d> 标签、专有名词和其他官方固定结构。不得缩写、概括或删除任何视觉、动作、运镜、光线、材质和声音细节。"
+                            "只输出完整的中文段落，不要解释。"
+                            if chinese_output
+                            else "Rewrite the complete input in English while preserving [Shot N], timestamps, reference labels, "
+                            "dialogue tags, proper nouns, and every visual, action, camera, lighting, material, and sound detail. "
+                            "Do not summarize or omit content. Output the complete English segment only."
+                        )
+                        translation_payload = {
+                            **payload,
+                            "messages": [
+                                {"role": "system", "content": translation_rule},
+                                {"role": "user", "content": segment},
+                            ],
+                            "temperature": 0.1,
+                            "max_tokens": min(MAX_CHAT_NEW_TOKENS, max(2048, max_new_tokens)),
+                        }
+                        translation_result = _post_json(
+                            SERVER.endpoint(), translation_payload, timeout=1200
+                        )
+                        translated = _segment_body(
+                            _clean_prompt(translation_result["choices"][0]["message"]["content"]),
+                            h3_mode,
+                        )
+                        if translated:
+                            segment = translated
+                    if segment:
+                        segments.append(segment)
+                if len(segments) == segment_count:
+                    prefix, main_label, suffix = section_parts
+                    text = prefix + main_label + " " + "\n\n".join(segments) + "\n\n" + suffix.lstrip()
             return {"ui": {"text": (text,)}, "result": (text,)}
         finally:
             if not kwargs["keep_model_loaded"]:
