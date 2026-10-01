@@ -264,16 +264,17 @@ def _append_professional_storyboard_role(parts: list[str]) -> None:
         "color, scale, and consistency constraints. Preserve details visible in the reference images. Do not invent brands, "
         "prices, discounts, certifications, ingredients, performance figures, medical claims, or unsupported product features.\n\n"
         "【口播文案】\n"
-        "Keep the original timed Mandarin sales-copy function. Assign a stable speaker ID such as (S1). Write every exact "
-        "spoken sentence once and only once in this section, using a numbered cue and the official dialogue syntax, for example "
-        "口播1（1.00s-3.50s）：女主播 (S1) says: <d>[Chinese] 这件衣服轻盈柔软，穿着很舒服。</d>. Preserve exact user dialogue when "
-        "provided. For a 15-second sales video with no user-specified script density, normally create 3 spoken cues; use 4 only "
+        "Use this section only as a compact speech plan and timing index. Assign a stable speaker ID such as (S1), and for each "
+        "numbered cue list its time range, speaker, delivery mode (画面对口型 or 离屏旁白), and approximate Chinese-character "
+        "budget. Do not place <d> blocks or the exact spoken sentence in this section. The exact words must appear once and only "
+        "once, directly inside the corresponding speaking shot in 【分镜设计】, so the model binds the visible mouth action, "
+        "speaker identity, timing, and sentence locally. Preserve exact user dialogue there when provided. For a 15-second sales "
+        "video with no user-specified script density, normally create 3 spoken cues; use 4 only "
         "when short copy and the shot rhythm make it natural. Aim for roughly 30-42 spoken Chinese characters in total, normally "
         "8-14 Chinese characters per cue over about 2.2-3.5 seconds, at a moderate pace of about 3.2-3.8 Chinese characters "
         "per second, with natural 0.2-0.4 second breathing pauses. Do not mechanically stretch, rush, or fill every second. "
         "If the user supplies exact dialogue, cue count, timing, speaking speed, or asks for denser/sparser speech, follow the user "
-        "instead of these defaults. Explicitly mark default silent ranges as 无口播. Never copy the exact dialogue words into any "
-        "other section.\n\n"
+        "instead of these defaults. Explicitly mark default silent ranges as 无口播.\n\n"
         "【分镜设计】\n"
         "Break the full duration into numbered shots such as 分镜1（约0s-3.5s）. Each shot must include subject action, "
         "camera movement, composition, transition intent, texture details, background continuity, and product/reference "
@@ -286,8 +287,11 @@ def _append_professional_storyboard_role(parts: list[str]) -> None:
         "action; use an off-screen voiceover for product macro, fabric detail, transition, occluded face, distant view, or other "
         "shots where mouth movement would be visually inappropriate. For off-screen speech use the official phrase ‘says in an "
         "off-screen voiceover’ and state that any on-screen character's lips remain completely closed. Never ambiguously combine "
-        "voiceover with mouth movement. When a shot contains speech, refer only to its cue by ID, for example ‘本镜头同步执行口播1，"
-        "S1正面对镜头张嘴说话并准确对口型’, without quoting, paraphrasing, summarizing, or restating the spoken words. Unless "
+        "voiceover with mouth movement. Put the exact dialogue inline at the precise action point of every speaking shot. For "
+        "visible lip-sync use, for example: ‘年轻女主播 (S1) says: <d>[Chinese] 这件衣服轻盈柔软，穿着很舒服。</d>，她正面对"
+        "镜头自然张嘴说话，嘴部清晰可见，嘴唇开合、音节、节奏和停顿与该句逐字同步’. For voiceover use the exact official pattern: "
+        "‘女主播 (S1) says in an off-screen voiceover: <d>[Chinese] ...</d>，镜头内人物嘴唇全程闭合’. Also name the cue ID "
+        "in that shot, but never place its exact words in 【口播文案】, another shot, 【音效与音乐】, or any other section. Unless "
         "the user overrides it, label the first 1 second and final 1 second 无口播. Time ranges must cover the full video continuously "
         "without gaps or overlaps. For 15-second product videos, prefer 4 shots unless the user explicitly asks otherwise.\n\n"
         "【转场要求】\n"
@@ -431,9 +435,12 @@ def _build_h3_user(
             "【全局参数】, 【人物与产品设定】, 【口播文案】, 【分镜设计】, 【转场要求】, "
             "【镜头与质感要求】, 【音效与音乐】, 【严格约束】. "
             "Keep the original detailed Chinese sales-video director role and dense production-ready output. "
-            "In 【口播文案】, give the speaker a stable ID such as (S1) and write each exact spoken sentence once as a "
-            "numbered cue using <d>[Chinese] ...</d>. In 【分镜设计】, refer to the cue only by its ID; never quote, "
-            "paraphrase, summarize, or restate its words. User instructions about dialogue, cue count, timing, speed, and which "
+            "Use 【口播文案】 only as a numbered timing plan containing cue ID, time range, stable speaker ID such as (S1), "
+            "lip-sync or off-screen delivery mode, and approximate character budget; it must contain no <d> block and no exact "
+            "spoken sentence. Put each exact sentence once and only once directly inside its corresponding shot in 【分镜设计】 "
+            "using the official inline syntax (S1) says: <d>[Chinese] ...</d>, beside the visible speaking action and precise "
+            "mouth-sync requirement. Never quote, paraphrase, summarize, or restate those words elsewhere. User instructions "
+            "about dialogue, cue count, timing, speed, and which "
             "shots lip-sync override every default. If the user gives no lip-sync instruction, make the first suitable shot—"
             "normally Shot 1 after the opening silent second—a visible mouth-opening, accurate lip-sync sales presentation; "
             "choose visible lip-sync or off-screen voiceover for each later cue according to whether the shot clearly shows a "
@@ -500,12 +507,27 @@ def _professional_prompt_issues(text: str) -> list[str]:
     if any(len(line) >= 4 and line in normalized_without_dialogue for line in normalized_dialogue):
         issues.append("spoken words are restated outside their single <d> block")
 
-    storyboard_index = text.find("【分镜设计】")
+    speech_plan_index = text.find("【口播文案】")
+    storyboard_index = text.find("【分镜设计】", speech_plan_index)
     transition_index = text.find("【转场要求】", storyboard_index)
-    if storyboard_index >= 0:
-        storyboard = text[storyboard_index:transition_index if transition_index >= 0 else None]
-        if "<d>" in storyboard:
-            issues.append("exact dialogue is repeated inside 【分镜设计】 instead of referenced only by cue ID")
+    if speech_plan_index >= 0 and storyboard_index >= 0:
+        speech_plan = text[speech_plan_index:storyboard_index]
+        if "<d>" in speech_plan.lower() or "</d>" in speech_plan.lower():
+            issues.append("【口播文案】 must be a timing plan only; exact <d> dialogue belongs inside its speaking shot")
+
+    if dialogue_matches and storyboard_index >= 0:
+        storyboard_end = transition_index if transition_index >= 0 else len(text)
+        if any(not (storyboard_index <= match.start() < storyboard_end) for match in dialogue_matches):
+            issues.append("every exact <d> dialogue line must appear once directly inside its corresponding 【分镜设计】 shot")
+
+        missing_inline_syntax = False
+        for match in dialogue_matches:
+            prefix = text[max(storyboard_index, match.start() - 180):match.start()]
+            if not re.search(r"\(S\d+(?:\s*,\s*S\d+)*\).*?says(?:\s+in\s+an\s+off-screen\s+voiceover)?\s*:\s*$", prefix, re.DOTALL | re.IGNORECASE):
+                missing_inline_syntax = True
+                break
+        if missing_inline_syntax:
+            issues.append("inline shot dialogue must bind speaker and words with (S1) says: <d>[Chinese] ...</d>")
 
     if not dialogue_matches and re.search(r"(?:口播|对白|旁白|says|voiceover).{0,100}[“\"]", text, re.DOTALL | re.IGNORECASE):
         issues.append("spoken content is written as prose or quotation instead of one <d>[Language] block")
@@ -622,7 +644,7 @@ class XinbaoH3PromptOptimizer:
                     _skill_choices(),
                     {
                         "default": SKILL_NAMES[BASE_SKILL_ID],
-                        "tooltip": "选择内容角色；中文带货视频保留原八段式带货分镜，默认首个合适镜头张嘴对口型，15秒通常生成3段中速口播；用户指定始终优先。",
+                        "tooltip": "选择内容角色；中文带货视频把每句口播原文直接写进对应分镜并绑定张嘴口型，15秒通常生成3段中速口播；用户指定始终优先。",
                     },
                 ),
                 "h3_mode": (list(H3_MODES), {"default": "文本生成视频 (T2VA)"}),
@@ -812,9 +834,11 @@ class XinbaoH3PromptOptimizer:
                     "perform the final dense Chinese sales-storyboard consistency pass without changing its role or structure"
                 ]
                 professional_repair_rule = (
-                    " Preserve all eight original Chinese bracket sections. Keep every exact spoken line only once in "
-                    "【口播文案】 as a numbered <d>[Chinese] ...</d> cue; 【分镜设计】 must refer to the cue ID without "
-                    "quoting, paraphrasing, or restating its words. User instructions about dialogue and lip-sync have highest "
+                    " Preserve all eight original Chinese bracket sections. Use 【口播文案】 only as a cue timing, speaker, "
+                    "delivery-mode, and character-budget index, with no <d> block and no exact spoken words. Put each exact "
+                    "spoken line once and only once directly inside its speaking shot in 【分镜设计】 using "
+                    "(S1) says: <d>[Chinese] ...</d>, adjacent to the visible mouth-opening and precise lip-sync action. User "
+                    "instructions about dialogue and lip-sync have highest "
                     "priority. If the user did not specify lip-sync, make the first suitable shot a visible mouth-opening accurate "
                     "lip-sync presentation, then choose later lip-sync or explicitly marked off-screen voiceover according to the "
                     "shot. For an otherwise unspecified 15-second video, normally use 3 moderately paced cues totaling about "
